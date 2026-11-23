@@ -70,7 +70,7 @@ const TEMPLATES = {
 
 class NFTBridge {
   constructor(options = {}) {
-    this.rpcUrl = options.rpcUrl || 'https://api.mainnet-beta.solana.com';
+    this.rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
     this.feeWallet = options.feeWallet || null;
     this.dryRun = options.dryRun !== undefined ? options.dryRun : true;
     this.defaultRoyaltyBps = options.defaultRoyaltyBps || 500; // 5% creator royalty

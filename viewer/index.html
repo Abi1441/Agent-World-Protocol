@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agent World Protocol — Live Viewer</title>
-<link rel="icon" type="image/png" href="../assets/brand/logo-transparent.png">
+<link rel="icon" type="image/png" href="/assets/brand/logo-transparent.png">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -24,7 +24,7 @@
   /* HUD Overlay */
   #hud {
     position: absolute;
-    top: 46px; left: 12px;
+    top: 64px; left: 12px;
     z-index: 100;
     pointer-events: none;
   }
@@ -211,12 +211,14 @@
   /* Controls hint */
   #controls-hint {
     position: absolute;
-    top: 220px; right: 12px;
+    top: 214px; right: 12px;
     z-index: 100;
+    width: 150px;
     font-size: 10px;
-    color: #444;
+    color: #666;
     text-align: right;
-    line-height: 1.8;
+    line-height: 1.5;
+    pointer-events: none;
   }
 
   @media (max-width: 768px) {
@@ -330,6 +332,53 @@
   #start-error { color: #ff6655; font-size: 11px; min-height: 14px; margin-bottom: 8px; }
   .wallet-status { font-size: 11px; color: #8a8aa0; margin-bottom: 12px; }
   .wallet-status.connected { color: #00ff88; }
+  #mode-chip {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 99px;
+    padding: 4px 10px;
+    margin-bottom: 16px;
+  }
+  #economy-badge {
+    margin-left: 8px;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 99px;
+    padding: 1px 6px;
+    vertical-align: middle;
+  }
+  #craft-overlay {
+    position: absolute; inset: 0; z-index: 600; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(4,4,12,0.72); backdrop-filter: blur(4px);
+  }
+  #craft-window {
+    width: 420px; max-width: 92vw; max-height: 80vh; overflow: auto;
+    background: #0a0a18; border: 1px solid rgba(0,212,255,0.35);
+    border-radius: 10px;
+  }
+  #craft-window .iv-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid rgba(0,212,255,0.2);
+    color: #00d4ff; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+  }
+  #craft-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .craft-row {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    width: 100%; text-align: left;
+    background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 8px; color: #e0e0e0; font-family: inherit; font-size: 13px;
+    padding: 10px 12px; cursor: pointer;
+  }
+  .craft-row span { color: #8a8aa0; font-size: 11px; }
+  .craft-row:hover:not(:disabled) { border-color: #00d4ff; }
+  .craft-row:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* Player HUD (own stats) */
   #player-hud {
@@ -523,7 +572,7 @@
     padding: 12px 16px; border-bottom: 1px solid rgba(0,212,255,0.2);
     color: #00d4ff; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
   }
-  #inv-close { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #cfe9ff; font-size: 18px; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; }
+  #inv-close, #craft-close { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #cfe9ff; font-size: 18px; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; }
   #inv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 16px; }
   .iv-cell { background: rgba(0,212,255,0.05); border: 1px solid rgba(0,212,255,0.15); border-radius: 8px; padding: 12px 6px; text-align: center; }
   .iv-cell .iv-ico { font-size: 26px; }
@@ -582,6 +631,7 @@
 <div id="connection-status" class="hud-panel">
   <span class="status-dot connecting" id="status-dot"></span>
   <span id="status-text">Connecting...</span>
+  <span id="economy-badge">SIMULATED</span>
 </div>
 
 <div id="event-log" class="hud-panel">
@@ -590,7 +640,7 @@
 </div>
 
 <div id="controls-hint">
-  WASD / Arrows or click to move<br>
+  WASD or click to move<br>
   Scroll to zoom
 </div>
 
@@ -614,10 +664,12 @@
 <!-- Action bar -->
 <div id="action-bar">
   <button onclick="Player.gather()">Gather<span class="key">G</span></button>
+  <button onclick="Player.scan()">Scan<span class="key">R</span></button>
+  <button onclick="openCraft()">Craft<span class="key">C</span></button>
   <button onclick="Player.speak()">Speak<span class="key">T</span></button>
   <button onclick="Player.build()">Build<span class="key">B</span></button>
+  <button onclick="Player.createGuild()">Guild<span class="key">U</span></button>
   <button onclick="Player.attackNearest()">Attack<span class="key">F</span></button>
-  <button onclick="Player.scan()">Scan<span class="key">R</span></button>
 </div>
 
 <!-- In-game menu -->
@@ -665,21 +717,33 @@
   </div>
 </div>
 
+<!-- Crafting -->
+<div id="craft-overlay" onclick="if(event.target.id==='craft-overlay')closeCraft()">
+  <div id="craft-window">
+    <div class="iv-head">
+      <span>Craft</span>
+      <button id="craft-close" onclick="closeCraft()" aria-label="Close">&times;</button>
+    </div>
+    <div id="craft-list"></div>
+  </div>
+</div>
+
 <!-- Start screen -->
 <div id="start-overlay">
   <div id="start-card">
     <h1>Enter the World</h1>
-    <p class="tag">Connect your Solana wallet to play. Move, gather, build, fight, and trade with everyone else who's online — right now.</p>
-    <input id="start-name" type="text" maxlength="30" placeholder="Your name (optional)" autocomplete="off" />
-    <div id="wallet-status" class="wallet-status">🔌 Wallet not connected</div>
+    <p class="tag">Type a name and play. Gather, craft, build, and trade with everyone online. The economy is simulated — no wallet and no real SOL.</p>
+    <div id="mode-chip">Solana devnet · simulated economy</div>
+    <input id="start-name" type="text" maxlength="30" placeholder="Your name" autocomplete="off" />
+    <div id="wallet-status" class="wallet-status">Guest play. A devnet wallet is optional.</div>
     <div id="start-error"></div>
-    <button id="connect-btn" class="btn-primary" onclick="Player.connectWallet()">🔗 Connect Wallet</button>
-    <button id="play-btn" class="btn-primary" onclick="Player.start()" style="display:none">▶ Play</button>
+    <button id="play-btn" class="btn-primary" onclick="Player.start()">▶ Play</button>
+    <button id="connect-btn" class="btn-ghost" onclick="Player.connectWallet()">Connect wallet (optional)</button>
     <button class="btn-ghost" onclick="Player.spectate()">Just watch</button>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+<script src="/vendor/phaser.min.js"></script>
 <script>
 // ==================== CONFIG ====================
 const WS_URL = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host;
@@ -2378,9 +2442,19 @@ const Player = (() => {
   let ws = null;
   let playing = false;
   let agentId = null;
-  let wallet = null;          // connected Solana wallet pubkey (base58)
+  let wallet = null;          // optional Solana wallet pubkey (base58)
+  let identity = null;        // wallet or local guest id sent to the server
+  let guestMode = true;
   let walletProvider = null;  // Phantom / Solflare provider
-  const state = { x: null, y: null, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 100, inv: {}, nearby: [], resources: [], balanceSOL: 0, solBalance: null, moveTarget: null };
+  let serverConfig = {
+    dryRun: true,
+    network: 'devnet',
+    requireWalletAuth: false,
+    simulatedEconomy: true,
+    guestPlay: true,
+    _loaded: false,
+  };
+  const state = { x: null, y: null, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 100, inv: {}, nearby: [], resources: [], balanceSOL: 0, solBalance: null, simulated: true, moveTarget: null };
   const held = new Set();
   let lastMoveAt = 0;
 
@@ -2388,7 +2462,38 @@ const Player = (() => {
   function send(obj) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
   function act(action) { send({ type: 'action', action }); }
 
-  // --- Wallet ---
+  function guestWallet() {
+    let id = localStorage.getItem('awp_guest_wallet');
+    if (!id) {
+      const bytes = new Uint8Array(16);
+      (window.crypto || crypto).getRandomValues(bytes);
+      id = 'guest_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('awp_guest_wallet', id);
+    }
+    return id;
+  }
+
+  async function ensureConfig() {
+    if (serverConfig._loaded) return serverConfig;
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) serverConfig = Object.assign(serverConfig, await res.json());
+    } catch (e) { /* keep safe defaults */ }
+    serverConfig._loaded = true;
+    state.simulated = serverConfig.simulatedEconomy !== false;
+    const net = String(serverConfig.network || 'devnet').toUpperCase();
+    const chip = document.getElementById('mode-chip');
+    if (chip) {
+      chip.textContent = state.simulated
+        ? net + ' · simulated economy · no real funds'
+        : net + ' · live ledger';
+    }
+    const badge = document.getElementById('economy-badge');
+    if (badge) badge.textContent = state.simulated ? 'SIMULATED' : 'LIVE';
+    return serverConfig;
+  }
+
+  // --- Wallet (optional) ---
   function getProvider() {
     if (window.phantom && window.phantom.solana && window.phantom.solana.isPhantom) return window.phantom.solana;
     if (window.solana && window.solana.isPhantom) return window.solana;
@@ -2399,11 +2504,11 @@ const Player = (() => {
 
   function walletConnected(pubkey) {
     wallet = pubkey;
+    guestMode = false;
     const status = document.getElementById('wallet-status');
-    status.textContent = '✓ ' + pubkey.slice(0, 4) + '…' + pubkey.slice(-4);
+    status.textContent = 'Devnet wallet ' + pubkey.slice(0, 4) + '…' + pubkey.slice(-4) + ' — still simulated in-world';
     status.classList.add('connected');
-    document.getElementById('connect-btn').style.display = 'none';
-    document.getElementById('play-btn').style.display = 'block';
+    document.getElementById('connect-btn').textContent = 'Wallet connected';
     document.getElementById('start-error').textContent = '';
   }
 
@@ -2411,7 +2516,7 @@ const Player = (() => {
     const err = document.getElementById('start-error');
     const provider = getProvider();
     if (!provider) {
-      err.innerHTML = 'No Solana wallet found. Install <a href="https://phantom.app" target="_blank" style="color:#00d4ff">Phantom</a> or <a href="https://solflare.com" target="_blank" style="color:#00d4ff">Solflare</a>.';
+      err.innerHTML = 'No Solana wallet in this browser. You can still play as a guest. Optional: install <a href="https://phantom.app" target="_blank" rel="noopener" style="color:#00d4ff">Phantom</a> and use a devnet account.';
       return;
     }
     try {
@@ -2420,7 +2525,7 @@ const Player = (() => {
       walletProvider = provider;
       walletConnected(pk.toString());
     } catch (e) {
-      err.textContent = 'Wallet connection was cancelled.';
+      err.textContent = 'Wallet connection was cancelled. Guest play still works.';
     }
   }
 
@@ -2450,12 +2555,22 @@ const Player = (() => {
     return base58encode(sigBytes);
   }
 
-  function start() {
-    if (!wallet || !walletProvider) { document.getElementById('start-error').textContent = 'Connect your wallet first.'; return; }
+  async function start() {
+    const cfg = await ensureConfig();
+    const err = document.getElementById('start-error');
+    const playBtn = document.getElementById('play-btn');
+    if (cfg.requireWalletAuth && (!wallet || !walletProvider)) {
+      err.textContent = 'This server requires a wallet signature. Connect a devnet wallet to play.';
+      return;
+    }
     const nameInput = document.getElementById('start-name');
-    const name = (nameInput.value || '').trim() || ('Player-' + wallet.slice(0, 4));
+    const fallback = wallet ? ('Player-' + wallet.slice(0, 4)) : 'Traveler';
+    const name = (nameInput.value || '').trim() || fallback;
     localStorage.setItem('awp_name', name);
-    connect(name);
+    guestMode = !wallet;
+    identity = wallet || guestWallet();
+    if (playBtn) playBtn.disabled = true;
+    connect(name, identity, !guestMode && !!walletProvider);
   }
 
   function spectate() {
@@ -2463,24 +2578,33 @@ const Player = (() => {
     ChatWidget.show(false); // read-only chat for spectators
   }
 
-  function connect(name) {
+  function connect(name, ident, sign) {
     const err = document.getElementById('start-error');
     err.textContent = 'Connecting...';
-    try { ws = new WebSocket(WS_URL); } catch (e) { err.textContent = 'Cannot reach server.'; return; }
+    const playBtn = document.getElementById('play-btn');
+    try { ws = new WebSocket(WS_URL); } catch (e) {
+      err.textContent = 'Cannot reach server.';
+      if (playBtn) playBtn.disabled = false;
+      return;
+    }
 
     ws.onopen = () => {};
     ws.onmessage = (ev) => {
       let msg; try { msg = JSON.parse(ev.data); } catch { return; }
       switch (msg.type) {
         case 'challenge':
-          // Prove wallet ownership by signing the server's challenge.
-          signChallenge(msg.challenge)
-            .then((signature) => send({ type: 'auth', wallet, name, signature }))
-            .catch(() => {
-              err.textContent = 'You must approve the signature to enter.';
-              showToast('Signature declined — cannot enter', 'combat');
-              if (ws) ws.close();
-            });
+          if (sign) {
+            signChallenge(msg.challenge)
+              .then((signature) => send({ type: 'auth', wallet: ident, name, signature }))
+              .catch(() => {
+                err.textContent = 'Signature declined. You can still play as a guest.';
+                showToast('Signature declined', 'combat');
+                if (playBtn) playBtn.disabled = false;
+                if (ws) ws.close();
+              });
+          } else {
+            send({ type: 'auth', wallet: ident, name, signature: 'guest' });
+          }
           break;
         case 'welcome':
           agentId = msg.agentId;
@@ -2488,11 +2612,11 @@ const Player = (() => {
           document.getElementById('start-overlay').style.display = 'none';
           document.getElementById('player-hud').style.display = 'block';
           document.getElementById('action-bar').style.display = 'flex';
-          ChatWidget.show(true); // chat enabled for players
+          ChatWidget.show(true);
           const sc = scene();
-          if (sc) sc.followingAgent = agentId; // camera locks to the player
+          if (sc) sc.followingAgent = agentId;
           if (msg.observation) applyObservation(msg.observation);
-          refreshSolBalance();
+          if (!guestMode) refreshSolBalance();
           showToast(msg.status === 'reconnected' ? 'Welcome back!' : 'You entered the world', 'build');
           break;
         case 'observation':
@@ -2502,6 +2626,10 @@ const Player = (() => {
         case 'error':
           err.textContent = msg.message || 'Error';
           if (playing) showToast(msg.message, 'combat');
+          else {
+            if (playBtn) playBtn.disabled = false;
+            try { ws.close(); } catch (e) { /* already closed */ }
+          }
           break;
         case 'disconnected':
           showToast('Disconnected: ' + (msg.reason || ''), 'combat');
@@ -2509,7 +2637,12 @@ const Player = (() => {
       }
     };
     ws.onclose = () => {
-      if (playing) { showToast('Connection lost — reconnecting...', 'combat'); setTimeout(() => connect(name), 2500); }
+      if (playing) {
+        showToast('Connection lost — reconnecting...', 'combat');
+        setTimeout(() => connect(name, ident, sign), 2500);
+      } else if (playBtn) {
+        playBtn.disabled = false;
+      }
     };
     ws.onerror = () => { err.textContent = 'Connection failed.'; };
   }
@@ -2527,7 +2660,10 @@ const Player = (() => {
     if (document.getElementById('inv-overlay').style.display === 'flex') renderInventory();
   }
 
-  function fmtSOL(v) { return v === null ? '◎ … SOL' : '◎ ' + v.toFixed(3) + ' SOL'; }
+  function purseLabel() {
+    const n = (Number(state.balanceSOL) || 0).toFixed(3);
+    return state.simulated ? (n + ' sim SOL') : (n + ' SOL');
+  }
 
   function renderHUD(name) {
     if (name) document.getElementById('ph-name').textContent = name;
@@ -2538,23 +2674,26 @@ const Player = (() => {
     fill.style.background = pct > 0.5 ? '#00ff44' : pct > 0.25 ? '#ffcc00' : '#ff4444';
     document.getElementById('ph-hp-text').textContent = state.hp + ' / ' + state.maxHp + ' HP';
     document.getElementById('ph-pos').textContent = '(' + state.x + ', ' + state.y + ')';
-    document.getElementById('ph-bal').textContent = fmtSOL(state.solBalance);
+    const bal = document.getElementById('ph-bal');
+    bal.textContent = purseLabel();
+    bal.title = state.simulated
+      ? 'In-world simulated balance. Not real SOL.'
+      : 'In-world ledger balance.';
   }
 
-  // Real on-chain SOL balance for the connected wallet.
+  // Optional devnet read of a connected wallet. Guests never hit an RPC.
   async function refreshSolBalance() {
-    if (!wallet) return;
+    if (guestMode || !wallet || wallet.startsWith('guest_')) return;
     try {
       const res = await fetch('/api/solana/balance?wallet=' + encodeURIComponent(wallet));
       if (!res.ok) return;
       const data = await res.json();
       if (typeof data.balanceSOL === 'number') {
         state.solBalance = data.balanceSOL;
-        const bal = document.getElementById('ph-bal');
-        if (bal) bal.textContent = fmtSOL(state.solBalance);
-        if (document.getElementById('inv-overlay').style.display === 'flex') renderInventory();
+        const net = (serverConfig.network || 'devnet');
+        showToast(net + ' chain balance ' + data.balanceSOL.toFixed(3) + ' SOL (not spent in-world)', 'event');
       }
-    } catch (e) { /* RPC unavailable — leave as … */ }
+    } catch (e) { /* RPC unavailable */ }
   }
 
   function reportResult(r) {
@@ -2562,7 +2701,13 @@ const Player = (() => {
     if (r.success === false && r.error) showToast(r.error, 'combat');
     else if (r.success && r.data) {
       if (r.data.gathered) showToast('Gathered ' + r.data.gathered + ' ' + (r.data.resourceType || ''), 'build');
-      else if (Array.isArray(r.data.resources)) {
+      else if (r.data.crafted) {
+        if (r.data.inventory) state.inv = r.data.inventory;
+        showToast('Crafted ' + String(r.data.crafted).replace(/_/g, ' '), 'build');
+        if (document.getElementById('craft-overlay').style.display === 'flex') openCraft();
+      } else if (r.data.guildId && r.data.tag) {
+        showToast('Guild [' + r.data.tag + '] ' + r.data.name + ' founded', 'build');
+      } else if (Array.isArray(r.data.resources)) {
         state.resources = r.data.resources;
         showToast(r.data.resources.length + ' resources nearby — press G to gather', 'event');
       }
@@ -2646,6 +2791,16 @@ const Player = (() => {
     act({ type: 'attack', targetAgentId: target.id });
     showToast('Attacking ' + target.name, 'combat');
   }
+  function craft(recipe) {
+    if (!playing || !recipe) return;
+    act({ type: 'craft', recipe });
+  }
+  function createGuild() {
+    if (!playing) return;
+    const name = (window.prompt('Guild name (costs 0.1 simulated SOL)', '') || '').trim();
+    if (!name) return;
+    act({ type: 'create_guild', name });
+  }
 
   // --- Keyboard ---
   window.addEventListener('keydown', (e) => {
@@ -2657,8 +2812,10 @@ const Player = (() => {
     switch (e.code) {
       case 'KeyG': gather(); break;
       case 'KeyR': scan(); break;
+      case 'KeyC': openCraft(); break;
       case 'KeyT': e.preventDefault(); speak(); break;
       case 'KeyB': build(); break;
+      case 'KeyU': createGuild(); break;
       case 'KeyF': attackNearest(); break;
     }
   });
@@ -2674,10 +2831,12 @@ const Player = (() => {
   if (nameEl) {
     const savedName = localStorage.getItem('awp_name');
     if (savedName) nameEl.value = savedName;
-    nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && wallet) start(); });
+    nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
   }
 
-  // If the wallet already trusts this site, reconnect silently (no popup).
+  ensureConfig();
+
+  // If a wallet already trusts this site, remember it. Play still works without one.
   (async () => {
     const provider = getProvider();
     if (!provider || !provider.connect) return;
@@ -2685,19 +2844,46 @@ const Player = (() => {
       const resp = await provider.connect({ onlyIfTrusted: true });
       const pk = (resp && resp.publicKey) ? resp.publicKey : provider.publicKey;
       if (pk) { walletProvider = provider; walletConnected(pk.toString()); }
-    } catch (e) { /* not previously trusted — user clicks Connect */ }
+    } catch (e) { /* not previously trusted — guest play is the default */ }
   })();
 
   return {
-    start, spectate, connectWallet, gather, scan, speak, say, build, attackNearest, moveTo,
+    start, spectate, connectWallet, gather, scan, speak, say, build, attackNearest, craft, createGuild, moveTo,
     isPlaying: () => playing,
-    getWallet: () => wallet,
+    getWallet: () => (guestMode ? identity : wallet),
     getAgentId: () => agentId,
     getInventory: () => state.inv,
     getBalanceSOL: () => state.balanceSOL,
-    getSolBalance: () => state.solBalance,
+    getSolBalance: () => state.balanceSOL,
+    purseLabel,
   };
 })();
+
+function openCraft() {
+  const overlay = document.getElementById('craft-overlay');
+  const list = document.getElementById('craft-list');
+  overlay.style.display = 'flex';
+  list.textContent = 'Loading recipes…';
+  fetch('/api/crafting/recipes')
+    .then(r => r.json())
+    .then(data => {
+      const inv = Player.getInventory() || {};
+      const recipes = data.recipes || {};
+      const names = Object.keys(recipes);
+      if (!names.length) { list.textContent = 'No recipes.'; return; }
+      list.innerHTML = names.map(name => {
+        const def = recipes[name];
+        const needs = Object.entries(def.ingredients || {}).map(([k, v]) => v + ' ' + k.replace(/_/g, ' ')).join(', ');
+        const can = Object.entries(def.ingredients || {}).every(([k, v]) => (inv[k] || 0) >= v);
+        return '<button class="craft-row" ' + (can ? '' : 'disabled') + ' onclick="Player.craft(\'' + name + '\')">' +
+          '<b>' + escapeHtml(name.replace(/_/g, ' ')) + '</b><span>' + escapeHtml(needs) + ' · +' + def.xp + ' XP</span></button>';
+      }).join('');
+    })
+    .catch(() => { list.textContent = 'Could not load recipes.'; });
+}
+function closeCraft() {
+  document.getElementById('craft-overlay').style.display = 'none';
+}
 
 // ==================== IN-GAME PANELS ====================
 // Embeds the leaderboard / bounties / chat / docs pages inside the game.
@@ -2786,13 +2972,13 @@ function renderInventory() {
   ).join('');
   grid.style.display = entries.length ? 'grid' : 'none';
   empty.style.display = entries.length ? 'none' : 'block';
-  const sol = Player.getSolBalance();
-  document.getElementById('inv-bal').textContent = sol === null ? '◎ … SOL' : '◎ ' + sol.toFixed(3) + ' SOL';
+  document.getElementById('inv-bal').textContent = Player.purseLabel();
 }
 window.addEventListener('keydown', (e) => {
   const tag = document.activeElement && document.activeElement.tagName;
   if (e.code === 'KeyI' && Player.isPlaying() && tag !== 'INPUT' && tag !== 'TEXTAREA') { openInventory(); }
   if (e.key === 'Escape' && document.getElementById('inv-overlay').style.display === 'flex') closeInventory();
+  if (e.key === 'Escape' && document.getElementById('craft-overlay').style.display === 'flex') closeCraft();
 });
 </script>
 </body>

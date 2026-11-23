@@ -14,6 +14,16 @@ class RestAPI {
     this.world = worldState;
     this.connections = connectionManager;
     this.port = options.port || 3000;
+    this.publicConfig = options.publicConfig || {
+      dryRun: true,
+      network: 'devnet',
+      requireWalletAuth: false,
+      simulatedEconomy: true,
+      guestPlay: true,
+      starterGrantSOL: 2,
+      tickRate: 1000,
+      version: '0.3.1',
+    };
     this.server = null;
 
     // SSE connections for real-time spectator updates
@@ -143,6 +153,7 @@ class RestAPI {
       try {
         // Route matching
         if (path === '/api/health') return this._health(req, res);
+        if (path === '/api/config') return this._publicConfig(req, res);
         if (path === '/api/stats') return this._stats(req, res);
         if (path === '/api/agents') return this._agents(req, res, query);
         if (path.startsWith('/api/agent/')) return this._agent(req, res, path);
@@ -226,6 +237,11 @@ class RestAPI {
         if (path === '/leaderboard' || path === '/leaderboard/') return this._serveFile(res, req, 'leaderboard/index.html', 'text/html');
         if (path === '/profiles' || path === '/profiles/') return this._serveFile(res, req, 'profiles/index.html', 'text/html');
 
+        // Local Phaser build (no CDN). Served from the installed package.
+        if (path === '/vendor/phaser.min.js') {
+          return this._serveFile(res, req, 'node_modules/phaser/dist/phaser.min.js', 'application/javascript');
+        }
+
         // Serve asset files (sprites, tilesets, effects)
         if (path.startsWith('/assets/')) return this._serveAsset(res, path);
 
@@ -268,6 +284,11 @@ class RestAPI {
   }
 
   // ==================== ENDPOINTS ====================
+
+  _publicConfig(req, res) {
+    // No secrets and no RPC URL (RPC URLs can carry API keys).
+    this._json(res, 200, this.publicConfig);
+  }
 
   async _health(req, res) {
     const health = {
@@ -319,6 +340,12 @@ class RestAPI {
       source = this.world.agents.values();
     }
 
+    const tilesByOwner = new Map();
+    for (const tile of this.world.tiles.values()) {
+      if (!tile.owner) continue;
+      tilesByOwner.set(tile.owner, (tilesByOwner.get(tile.owner) || 0) + 1);
+    }
+
     const agents = [];
     let total = 0;
     let skipped = 0;
@@ -326,6 +353,8 @@ class RestAPI {
       total++;
       if (skipped < offset) { skipped++; continue; }
       if (agents.length >= limit) continue; // still counting total
+      const balance = this.world.getBalance(a.id);
+      const rep = a.reputation || {};
       agents.push({
         id: a.id,
         name: a.name,
@@ -335,8 +364,14 @@ class RestAPI {
         level: a.level || 1,
         xp: a.xp || 0,
         guildId: a.guildId || null,
-        reputation: a.reputation,
+        reputation: rep,
+        reputationScore: rep.averageRating || 0,
+        bountiesCompleted: rep.bountiesCompleted || 0,
         connectedAt: a.connectedAt,
+        wallet: a.wallet || null,
+        balance: balance.balanceSOL,
+        balanceSOL: balance.balanceSOL,
+        tilesOwned: tilesByOwner.get(a.id) || 0,
       });
     }
 
@@ -552,6 +587,11 @@ class RestAPI {
 
     // Operator controls — POST endpoint
     if (subPath.startsWith('control/') && req.method === 'POST') {
+      if (!this.publicConfig.operatorControls) {
+        return this._json(res, 403, {
+          error: 'Pause, kill, and withdraw are disabled until OPERATOR_SECRET or ADMIN_KEY is set. The public world is view-only.',
+        });
+      }
       return this._handleOperatorControl(req, res, subPath, wallet);
     }
 
@@ -660,6 +700,17 @@ class RestAPI {
   async _solanaBalance(req, res, query = {}) {
     const wallet = (query.wallet || '').trim();
     if (!wallet) return this._json(res, 400, { error: 'Missing wallet query param' });
+    // Guest identities are local browser ids, not Solana addresses. Never query an RPC for them.
+    if (wallet.startsWith('guest_')) {
+      return this._json(res, 200, {
+        wallet,
+        balanceSOL: null,
+        guest: true,
+        network: this.publicConfig.network || 'devnet',
+        simulated: true,
+        note: 'Guest identity has no on-chain balance. The in-world purse is simulated.',
+      });
+    }
 
     const bridge = this.bridgeManager && this.bridgeManager.bridges && this.bridgeManager.bridges.get('solana');
     if (!bridge) return this._json(res, 503, { error: 'Solana bridge not available' });

@@ -2692,6 +2692,40 @@ console.log('\n🧩 Bounty Per-Agent Limit');
   assert(result.results[0].error.includes('10'), 'Error mentions 10 limit');
 }
 
+// --- Safe defaults: devnet, dry-run, starter grant ---
+console.log('\n🛡️ Safe defaults');
+{
+  const { loadConfig } = require('../src/config');
+  const defaults = loadConfig({});
+  assert(defaults.SOLANA_NETWORK === 'devnet', 'Default network is devnet');
+  assert(defaults.SOLANA_RPC.includes('devnet'), 'Default RPC is devnet');
+  assert(defaults.DRY_RUN === true, 'Default economy is simulated (DRY_RUN)');
+  assert(defaults.REQUIRE_WALLET_AUTH === false, 'Guest play is allowed by default');
+  assert(defaults.STARTER_GRANT_LAMPORTS === 2e9, 'Dry-run starter grant is 2 simulated SOL');
+  assert(defaults.errors.length === 0, 'Default config has no startup errors');
+  assert(defaults.OPERATOR_CONTROLS === false, 'Operator controls stay off until a secret is set');
+  assert(defaults.ZONE_SIZE === 64, 'Default zone size is 64');
+
+  const mainnet = loadConfig({ SOLANA_RPC: 'https://api.mainnet-beta.solana.com', DRY_RUN: 'true' });
+  assert(mainnet.errors.length > 0, 'Mainnet RPC is refused without ALLOW_MAINNET');
+
+  const allowed = loadConfig({ SOLANA_RPC: 'https://api.mainnet-beta.solana.com', ALLOW_MAINNET: 'true', DRY_RUN: 'true' });
+  assert(allowed.errors.length === 0, 'Mainnet RPC allowed only with ALLOW_MAINNET');
+
+  const local = loadConfig({ SOLANA_RPC: 'http://127.0.0.1:8899' });
+  assert(local.SOLANA_NETWORK === 'localnet', 'Local validator RPC is labeled localnet');
+  assert(local.errors.length === 0, 'Localnet config starts cleanly');
+
+  const granted = new WorldState({ STARTER_GRANT: 2e9 });
+  const newcomer = granted.addAgent({ wallet: 'guest_abc', name: 'Newcomer' });
+  assert(granted.getBalance(newcomer.id).balance === 2e9, 'Starter grant credits a new agent');
+  assert(granted.protocolRevenue === 0, 'Starter grant is not protocol revenue');
+
+  const plain = new WorldState();
+  const zero = plain.addAgent({ wallet: 'w-zero', name: 'Zero' });
+  assert(plain.getBalance(zero.id).balance === 0, 'Worlds without a starter grant still start at 0');
+}
+
 // ==================== RESULTS ====================
 console.log('\n' + '═'.repeat(50));
 console.log(`  Results: ${passed} passed, ${failed} failed, ${passed + failed} total`);

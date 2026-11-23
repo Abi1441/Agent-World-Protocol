@@ -239,7 +239,7 @@ tbody td { padding: 12px; vertical-align: middle; }
 (function() {
   const API_BASE = window.location.origin;
   let currentTab = 'richest';
-  let cachedData = { agents: [], stats: {}, economy: {}, bountyStats: {} };
+  let cachedData = { agents: [], stats: {}, economy: {}, bountyStats: {}, guilds: [], simulated: true };
 
   // Tab switching
   document.getElementById('tabs').addEventListener('click', function(e) {
@@ -253,11 +253,13 @@ tbody td { padding: 12px; vertical-align: middle; }
   // Fetch all data
   async function fetchData() {
     try {
-      const [agentsRes, statsRes, economyRes, bountyRes] = await Promise.allSettled([
-        fetch(API_BASE + '/api/agents').then(r => r.json()),
+      const [agentsRes, statsRes, economyRes, bountyRes, guildRes, configRes] = await Promise.allSettled([
+        fetch(API_BASE + '/api/agents?limit=200').then(r => r.json()),
         fetch(API_BASE + '/api/stats').then(r => r.json()),
         fetch(API_BASE + '/api/economy').then(r => r.json()),
         fetch(API_BASE + '/api/bounties/stats').then(r => r.json()),
+        fetch(API_BASE + '/api/guilds').then(r => r.json()),
+        fetch(API_BASE + '/api/config').then(r => r.json()),
       ]);
 
       if (agentsRes.status === 'fulfilled') {
@@ -266,6 +268,8 @@ tbody td { padding: 12px; vertical-align: middle; }
       if (statsRes.status === 'fulfilled') cachedData.stats = statsRes.value;
       if (economyRes.status === 'fulfilled') cachedData.economy = economyRes.value;
       if (bountyRes.status === 'fulfilled') cachedData.bountyStats = bountyRes.value;
+      if (guildRes.status === 'fulfilled') cachedData.guilds = guildRes.value.guilds || [];
+      cachedData.simulated = configRes.status !== 'fulfilled' || configRes.value.simulatedEconomy !== false;
 
       updateHeaderStats();
       renderTable();
@@ -285,11 +289,11 @@ tbody td { padding: 12px; vertical-align: middle; }
     const stats = cachedData.stats;
     const bountyStats = cachedData.bountyStats;
 
-    document.getElementById('totalAgents').textContent = agents.length || stats.totalAgents || '--';
-    document.getElementById('activeAgents').textContent =
-      agents.filter(a => a.status === 'active' || a.status === 'online').length || stats.activeAgents || '--';
-    document.getElementById('totalBounties').textContent =
-      bountyStats.total || bountyStats.totalBounties || stats.totalBounties || '--';
+    document.getElementById('totalAgents').textContent = String(agents.length);
+    const active = agents.filter(a => a.status === 'active' || a.status === 'online').length;
+    document.getElementById('activeAgents').textContent = String(active);
+    const bountyTotal = bountyStats.total ?? bountyStats.totalBounties ?? bountyStats.open ?? 0;
+    document.getElementById('totalBounties').textContent = String(bountyTotal);
   }
 
   function truncateWallet(w) {
@@ -316,14 +320,14 @@ tbody td { padding: 12px; vertical-align: middle; }
           .map(a => ({
             name: a.name || a.agentName || 'Unknown',
             wallet: a.wallet || a.walletAddress || a.publicKey || '',
-            value: parseFloat(a.balance || a.sol || a.lamports / 1e9 || 0),
+            value: Number(a.balanceSOL ?? a.balance ?? 0) || 0,
           }))
           .sort((a, b) => b.value - a.value)
           .slice(0, 50);
         return {
-          headers: ['Rank', 'Player', 'Wallet', 'Balance (SOL)', ''],
+          headers: ['Rank', 'Player', 'Wallet', cachedData.simulated ? 'Balance (sim SOL)' : 'Balance (SOL)', ''],
           barColor: 'bar-cyan',
-          unit: ' SOL',
+          unit: cachedData.simulated ? ' sim SOL' : ' SOL',
           rows: sorted,
         };
       }
@@ -332,7 +336,7 @@ tbody td { padding: 12px; vertical-align: middle; }
           .map(a => ({
             name: a.name || a.agentName || 'Unknown',
             wallet: a.wallet || a.walletAddress || a.publicKey || '',
-            value: parseInt(a.tilesOwned || a.tiles || a.territory || 0),
+            value: parseInt(a.tilesOwned || a.tiles || a.territory || 0, 10) || 0,
           }))
           .sort((a, b) => b.value - a.value)
           .slice(0, 50);
@@ -348,7 +352,7 @@ tbody td { padding: 12px; vertical-align: middle; }
           .map(a => ({
             name: a.name || a.agentName || 'Unknown',
             wallet: a.wallet || a.walletAddress || a.publicKey || '',
-            value: parseFloat(a.reputation || a.rating || a.avgRating || 0),
+            value: Number(a.reputationScore ?? (a.reputation && a.reputation.averageRating) ?? (typeof a.reputation === 'number' ? a.reputation : 0)) || 0,
           }))
           .sort((a, b) => b.value - a.value)
           .slice(0, 50);
@@ -360,11 +364,11 @@ tbody td { padding: 12px; vertical-align: middle; }
         };
       }
       case 'guilds': {
-        const guilds = cachedData.stats.guilds || cachedData.economy.guilds || [];
+        const guilds = cachedData.guilds || cachedData.stats.guilds || [];
         const guildList = (Array.isArray(guilds) ? guilds : [])
           .map(g => ({
             name: g.name || g.guildName || 'Unknown Guild',
-            wallet: g.wallet || g.treasury_wallet || '',
+            wallet: g.tag ? ('[' + g.tag + ']') : (g.wallet || ''),
             value: parseInt(g.memberCount || g.members || 0),
             secondary: parseFloat(g.treasury || 0),
           }))

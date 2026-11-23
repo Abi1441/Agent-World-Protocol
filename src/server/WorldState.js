@@ -18,6 +18,7 @@ const DEFAULT_CONFIG = {
   TRADE_RADIUS: 3,         // must be within 3 tiles to trade
   BUILD_RADIUS: 1,         // must be on or adjacent to build
   INITIAL_ZONES: ['village_center'], // zones that exist at world start
+  STARTER_GRANT: 0,        // lamports given to a new agent (0 in tests; server sets this in dry-run)
 };
 
 // Zone biome types
@@ -467,6 +468,12 @@ class WorldState {
 
     this.agents.set(agentId, agent);
     this._initLedger(agentId);
+    const grant = this.config.STARTER_GRANT || 0;
+    if (grant > 0) {
+      // Simulated starting purse so a new player can claim land, build, and found a guild.
+      // This is ledger credit only — it is never an on-chain transfer.
+      this.deposit(agentId, grant, 'starter grant (simulated — not real SOL)');
+    }
     this._updateSpatialIndex(agentId, spawnX, spawnY, spawnX, spawnY);
 
     // Add to tile

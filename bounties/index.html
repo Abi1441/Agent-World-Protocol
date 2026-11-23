@@ -517,7 +517,7 @@ body {
   <!-- Wallet connect -->
   <div class="wallet-bar">
     <label style="font-family: var(--mono); font-size: 12px; color: var(--text-2);">WALLET</label>
-    <input type="text" id="wallet-input" placeholder="Enter your Solana wallet address" />
+    <input type="text" id="wallet-input" placeholder="Guest id or devnet wallet (simulated)" />
     <button class="btn btn-primary btn-small" onclick="connectWallet()">Connect</button>
     <span class="wallet-status" id="wallet-status">Not connected</span>
     <span class="balance-display" id="balance-display"></span>
@@ -616,9 +616,10 @@ async function fetchBalance() {
       const balRes = await fetch(`${API_URL}/api/economy/balance/${agent.id}`);
       const balData = await balRes.json();
       currentBalance = balData.balanceSOL || 0;
-      document.getElementById('balance-display').textContent = `${currentBalance.toFixed(4)} SOL`;
+      const unit = window.__awpSimulated === false ? 'SOL' : 'sim SOL';
+      document.getElementById('balance-display').textContent = `${currentBalance.toFixed(4)} ${unit}`;
     } else {
-      document.getElementById('balance-display').textContent = 'No balance — deposit SOL first';
+      document.getElementById('balance-display').textContent = 'No in-world balance yet';
     }
   } catch (e) {}
 }
@@ -866,8 +867,13 @@ function showToast(msg, type) {
 loadBounties('open');
 setInterval(loadStats, 10000);
 
-// Auto-connect the wallet passed from the game (no need to reconnect).
-(function () {
+// Auto-connect the identity passed from the game (guest id or devnet wallet).
+(async function () {
+  window.__awpSimulated = true;
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    window.__awpSimulated = cfg.simulatedEconomy !== false;
+  } catch (e) { /* keep the simulated label */ }
   const w = new URLSearchParams(location.search).get('wallet');
   if (w) {
     const input = document.getElementById('wallet-input');

@@ -19,10 +19,10 @@ const PROTOCOL_FEE_BPS = 10; // basis points (10 = 0.1%)
 
 class SolanaBridge {
   constructor(options = {}) {
-    this.rpcUrl = options.rpcUrl || 'https://api.mainnet-beta.solana.com';
+    this.rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
     this.connection = new Connection(this.rpcUrl, 'confirmed');
     this.feeWallet = options.feeWallet || null;
-    this.network = options.network || 'mainnet-beta';
+    this.network = options.network || 'devnet';
     this.dryRun = options.dryRun !== undefined ? options.dryRun : true; // safety: dry run by default
 
     console.log(`[SolanaBridge] Initialized (${this.network}, dryRun: ${this.dryRun})`);
