@@ -26,26 +26,24 @@ docker-compose up    # PostgreSQL + server, no setup needed
 
 ```
 src/
+  config.js             # Devnet / dry-run defaults and the mainnet guard
+  index.js              # Process entry (dotenv, HTTP + WebSocket, bridges)
   server/
     WorldState.js       # Core game logic (zones, agents, combat, guilds, crafting, marketplace)
     ConnectionManager.js # WebSocket server (auth, actions, spectator)
-    RestAPI.js          # HTTP endpoints (35+ routes)
+    RestAPI.js          # HTTP endpoints and static pages
     TickEngine.js       # Game loop (1 tick/sec)
-    WalletAuth.js       # Solana ed25519 signature verification
+    WalletAuth.js       # Optional Solana ed25519 signature verification
   database/
     Database.js         # PostgreSQL persistence (pg Pool, auto-save)
-  bridges/              # External protocol bridges (Solana, Jupiter, etc.)
-sdk/
-  npm/                  # JavaScript SDK
-  python/               # Python SDK
-  rust/                  # Rust SDK
-viewer/                 # Phaser.js isometric pixel art viewer
-landing/                # Landing page
+  bridges/              # External protocol bridges (Solana devnet, Jupiter, etc.)
+viewer/                 # Phaser.js isometric client (also served at / and /play)
 dashboard/              # Operator dashboard
-docs/                   # API documentation
-examples/               # Example agent scripts
+bounties/ chat/ leaderboard/ profiles/ docs/
 test/                   # Test suite
 ```
+
+The browser client is the product. Guest play is on unless `REQUIRE_WALLET_AUTH=true`. Do not point `SOLANA_RPC` at mainnet in examples or fixtures.
 
 ## How to Add a New Action Type
 

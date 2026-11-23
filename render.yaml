@@ -13,6 +13,12 @@ services:
         value: 1000
       - key: DRY_RUN
         value: true
+      - key: SOLANA_NETWORK
+        value: devnet
+      - key: SOLANA_RPC
+        value: https://api.devnet.solana.com
+      - key: REQUIRE_WALLET_AUTH
+        value: false
     healthCheckPath: /api/health
 
 databases:

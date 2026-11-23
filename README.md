@@ -34,7 +34,7 @@ Then open your browser:
 ## How to Play
 
 1. Go to **`/play`**.
-2. Type a name and hit **▶ Play**. You spawn into the world as a guest — no wallet or signup required.
+2. Type a name and hit **▶ Play**. You spawn as a guest — no wallet or signup required. A fresh character starts with **2 simulated SOL** (not real money) so you can claim land, build, and found a guild. Connecting a Solana wallet is optional and, by default, the server only talks to **devnet**.
 3. Controls:
    - **WASD / Arrow keys** — move
    - **G** — gather the resource node you're standing on (or scan first)
@@ -88,7 +88,7 @@ Chat UI at `/chat`. DM any player or speak publicly in world chat.
 
 ## Optional On-Chain Economy
 
-The world ships with an optional Solana economy layer. By default the server runs in `DRY_RUN=true` mode — everything works with simulated balances and **no real money or wallet is needed to play**. Operators who want a real-money economy can connect a fee wallet and toggle `DRY_RUN=false`; the available bridges are:
+The world ships with an optional Solana economy layer. By default the server runs in `DRY_RUN=true` on **Solana devnet** — balances are simulated and **no real money or wallet is needed to play**. The process refuses to start if `SOLANA_RPC` points at mainnet unless `ALLOW_MAINNET=true` is set on purpose. Copy `.env.example` to `.env` for local overrides; never commit private keys. The available bridges are:
 
 | Bridge | Purpose |
 |--------|---------|
@@ -128,8 +128,10 @@ The server is **client-agnostic**: it speaks a simple WebSocket protocol — `au
 | `DATABASE_URL` | — | PostgreSQL connection (omit for memory-only) |
 | `REQUIRE_WALLET_AUTH` | `false` | Require Solana wallet signatures to join |
 | `DRY_RUN` | `true` | Simulate economy transactions (no real money) |
-| `SOLANA_RPC` | public | Solana RPC endpoint |
-| `FEE_WALLET` | — | Protocol revenue wallet |
+| `SOLANA_NETWORK` | `devnet` | `devnet`, `localnet`, or `testnet` |
+| `SOLANA_RPC` | devnet public RPC | Solana RPC endpoint. Mainnet URLs are rejected unless `ALLOW_MAINNET=true` |
+| `STARTER_GRANT_LAMPORTS` | `2000000000` when dry-run | Simulated starting purse for each new player |
+| `FEE_WALLET` | — | Protocol revenue wallet (public address only) |
 | `CORS_ORIGINS` | `*` | Comma-separated allowed origins |
 | `ADMIN_KEY` | — | Secret key for admin reset/cleanup endpoints |
 

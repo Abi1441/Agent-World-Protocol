@@ -478,14 +478,14 @@ async function apiPost(path, body) {
 }
 
 async function fetchDashboard() {
-  if (!state.wallet) return;
-
   const results = await Promise.allSettled([
-    api(`/api/operator/dashboard?wallet=${state.wallet}`),
+    state.wallet ? api(`/api/operator/dashboard?wallet=${encodeURIComponent(state.wallet)}`) : Promise.resolve(null),
     api('/api/stats'),
     api('/api/bridges/stats'),
+    api('/api/config'),
   ]);
-  const [dashboard, stats, bridges] = results.map(r => r.status === 'fulfilled' ? r.value : null);
+  const [dashboard, stats, bridges, config] = results.map(r => r.status === 'fulfilled' ? r.value : null);
+  state.publicConfig = config || { simulatedEconomy: true, network: 'devnet' };
 
   if (dashboard) {
     state.agents = dashboard.dashboard || [];
@@ -613,13 +613,7 @@ function stopPolling() {
 // ==================== RENDER ====================
 function render() {
   const app = document.getElementById('app');
-
-  if (!state.wallet) {
-    app.innerHTML = renderLoginScreen();
-    return;
-  }
-
-  const selectedAgent = state.agents.find(a => a.agent.id === state.selectedAgentId);
+  const selectedAgent = state.wallet ? state.agents.find(a => a.agent.id === state.selectedAgentId) : null;
 
   app.innerHTML = `
     ${renderHeader()}
@@ -633,43 +627,32 @@ function render() {
   `;
 }
 
-function renderLoginScreen() {
-  return `
-    <div class="wallet-input-area">
-      <div style="font-size: 48px; margin-bottom: 8px;">🌍</div>
-      <h2>AGENT WORLD PROTOCOL</h2>
-      <p>Enter your wallet address to access the operator dashboard. 
-         This is the same wallet your agents authenticate with.</p>
-      <div class="input-row">
-        <input type="text" id="wallet-input" placeholder="Wallet address or demo wallet..."
-               value="${state.wallet}" onkeypress="if(event.key==='Enter')connectWallet(document.getElementById('wallet-input').value)">
-        <button class="btn primary" onclick="connectWallet(document.getElementById('wallet-input').value)">Connect</button>
-      </div>
-      <p style="font-size: 11px; color: var(--text-3); margin-top: 8px;">
-        Tip: Start the server (npm start), spawn agents (npm run agent:multi), then enter one of the demo wallet addresses shown in the agent logs.
-      </p>
-    </div>
-  `;
-}
-
 function renderHeader() {
+  const cfg = state.publicConfig || {};
+  const net = String(cfg.network || 'devnet').toUpperCase();
+  const mode = cfg.simulatedEconomy === false ? 'LIVE LEDGER' : 'SIMULATED';
+  const walletBits = state.wallet
+    ? `<div class="wallet-badge"><span class="icon">◆</span>${state.wallet.slice(0, 8)}...${state.wallet.slice(-4)}</div>
+       <button class="btn" onclick="disconnectWallet()">Clear filter</button>`
+    : `<input type="text" id="wallet-input" placeholder="Optional guest id or devnet wallet"
+         style="background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-0);font-family:var(--mono);font-size:12px;width:260px;outline:none;"
+         onkeypress="if(event.key==='Enter')connectWallet(this.value)">
+       <button class="btn primary" onclick="connectWallet(document.getElementById('wallet-input').value)">Filter</button>`;
   return `
     <div class="header">
       <div class="header-left">
         <button class="sidebar-toggle-btn" onclick="toggleDashSidebar()" aria-label="Agents">☰</button>
-        <div class="logo">AWP <span>OPERATOR</span></div>
+        <div class="logo">AWP <span>WORLD</span></div>
         <div class="header-status">
           <div class="status-dot ${state.connected ? '' : 'off'}"></div>
-          ${state.connected ? 'Live' : 'Disconnected'}
-          ${state.worldStats.tick ? ` · Tick ${state.worldStats.tick}` : ''}
+          ${state.connected ? 'Live' : 'Connecting'}
+          ${state.worldStats.tick != null ? ` · Tick ${state.worldStats.tick}` : ''}
+          · ${net} · ${mode}
         </div>
       </div>
       <div class="header-right">
-        <div class="wallet-badge">
-          <span class="icon">◆</span>
-          ${state.wallet.slice(0, 8)}...${state.wallet.slice(-4)}
-        </div>
-        <button class="btn" onclick="disconnectWallet()">Disconnect</button>
+        ${walletBits}
+        <a class="btn" href="/play" style="text-decoration:none;">Play</a>
       </div>
     </div>
   `;
@@ -702,7 +685,7 @@ function renderStatsBar() {
       </div>
       <div class="stat-card">
         <span class="label">Fees Collected</span>
-        <span class="value green">${bs.totalFees ? (bs.totalFees / 1e9).toFixed(4) + ' SOL' : '0'}</span>
+        <span class="value green">${bs.totalFees ? (bs.totalFees / 1e9).toFixed(4) + ((state.publicConfig && state.publicConfig.simulatedEconomy === false) ? ' SOL' : ' sim SOL') : '0'}</span>
       </div>
     </div>
   `;
@@ -714,7 +697,7 @@ function renderSidebar() {
       <div class="sidebar-header">Your Agents (${state.agents.length})</div>
       ${state.agents.length === 0 ? `
         <div class="empty-state" style="padding: 30px 16px;">
-          <div class="sub">No agents found for this wallet.<br>Connect an agent using the SDK.</div>
+          <div class="sub">${state.wallet ? 'No character found for that id.' : 'Public world view. Filter by a guest id to see one character.'}</div>
         </div>
       ` : state.agents.map(a => `
         <div class="agent-card ${a.agent.id === state.selectedAgentId ? 'active' : ''}" 
@@ -824,7 +807,7 @@ function renderCenter(agent) {
         </div>
       </div>
 
-      <!-- Controls -->
+      ${(state.publicConfig && state.publicConfig.operatorControls) ? `
       <div class="panel">
         <div class="panel-header"><h3>Operator Controls</h3></div>
         <div class="panel-body">
@@ -839,12 +822,18 @@ function renderCenter(agent) {
             <button class="btn danger" onclick="killAgent('${a.id}')">✕ Kill Agent</button>
           </div>
           <div style="margin-top: 12px; font-size: 11px; color: var(--text-3);">
-            Guardrails: Max spend ${a.controls?.maxSpendPerTick ? (a.controls.maxSpendPerTick / 1e9).toFixed(2) + ' SOL/tick' : 'unlimited'} · 
-            Zones blocked: ${a.controls?.zoneBlacklist?.length || 0} · 
+            Guardrails: Max spend ${a.controls?.maxSpendPerTick ? (a.controls.maxSpendPerTick / 1e9).toFixed(2) + ' SOL/tick' : 'unlimited'} ·
+            Zones blocked: ${a.controls?.zoneBlacklist?.length || 0} ·
             Actions: ${a.controls?.allowedActions ? a.controls.allowedActions.join(', ') : 'all'}
           </div>
         </div>
-      </div>
+      </div>` : `
+      <div class="panel">
+        <div class="panel-header"><h3>Operator Controls</h3></div>
+        <div class="panel-body" style="color:var(--text-3);font-size:12px;">
+          View only. Pause, kill, and withdraw stay off until the server has OPERATOR_SECRET or ADMIN_KEY.
+        </div>
+      </div>`}
 
       <!-- Buildings -->
       <div class="panel">
@@ -1316,20 +1305,12 @@ async function addWebhook() {
 }
 
 // ==================== INIT ====================
+// Public world stats load with no wallet. A guest id or devnet address only filters one character.
+state.publicConfig = { simulatedEconomy: true, network: 'devnet' };
 render();
 connectWS();
-
-if (state.wallet) {
-  startPolling();
-  fetchDashboard();
-}
-
-// Load dashboard features after initial render
-setTimeout(() => {
-  loadPnLChart();
-  loadSocialGraph();
-  showWebhookPanel();
-}, 500);
+startPolling();
+fetchDashboard();
 </script>
 </body>
 </html>

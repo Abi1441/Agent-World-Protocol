@@ -1,6 +1,6 @@
 {
   "name": "agent-world-protocol",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A live, multiplayer pixel world played by real people — move, gather, build, fight, trade, and form guilds.",
   "main": "src/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "npx nodemon",
     "test": "node test/test-world.js",
     "test:watch": "npx nodemon --watch src --watch test --exec \"node test/test-world.js\"",
-    "lint": "npx eslint src/ --fix",
+    "lint": "node scripts/check-syntax.js",
     "validate": "node -e \"require('./src/server/WorldState'); console.log('OK: all modules load')\""
   },
   "keywords": [
@@ -21,11 +21,15 @@
   ],
   "author": "Adrian",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@solana/web3.js": "^1.98.4",
     "bs58": "^6.0.0",
     "dotenv": "^16.4.0",
     "pg": "^8.20.0",
+    "phaser": "3.60.0",
     "uuid": "^9.0.0",
     "ws": "^8.16.0"
   }

@@ -24,6 +24,8 @@ services:
       DATABASE_URL: postgresql://awp:awp_dev@db:5432/agentworld
       DRY_RUN: "true"
       REQUIRE_WALLET_AUTH: "false"
+      SOLANA_NETWORK: devnet
+      SOLANA_RPC: https://api.devnet.solana.com
     volumes:
       - .:/app
       - /app/node_modules

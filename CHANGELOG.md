@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.1] - 2026-11-23
+
+### Added
+- Guest play is the default browser path again: type a name and press Play. No wallet extension required. The guest id is stored in the browser and is not a Solana key.
+- Public `GET /api/config` (network, dry-run, guest play, starter grant). No RPC URL and no secrets.
+- Dry-run starter grant of 2 simulated SOL so a new player can build, claim land, and found a guild.
+- In-game crafting panel and a guild button.
+- Phaser 3.60 is served from the local install at `/vendor/phaser.min.js`.
+- `npm run lint` syntax-checks `src/`, `test/`, and `scripts/` without rewriting files.
+
+### Changed
+- Default Solana cluster is **devnet**. Mainnet RPCs refuse to boot unless `ALLOW_MAINNET=true`.
+- `.env` is loaded via dotenv. `.env.example` documents only safe defaults.
+- Server zone size default is 64, matching the world generator.
+- HUD balance is the in-world simulated purse (`sim SOL`), not an on-chain mainnet balance.
+
+### Fixed
+- Dockerfile no longer copies the removed `landing/` and `launch/` directories.
+
 ## [0.2.8] - 2026-04-08
 
 ### Fixed
